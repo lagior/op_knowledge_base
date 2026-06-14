@@ -4,7 +4,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from op_knowledge_base.config import load_config
 from op_knowledge_base.models import IngestionResult
-from op_knowledge_base.sources.confluence import fetch_changed_documents
+from op_knowledge_base.sources import confluence as confluence_source
+from op_knowledge_base.sources import git as git_source
 from op_knowledge_base.store import add_documents, delete_by_doc_id, init_store
 
 
@@ -17,25 +18,19 @@ def _build_splitter(config: dict) -> RecursiveCharacterTextSplitter:
     )
 
 
-def ingest_confluence(config: dict | None = None) -> IngestionResult:
-    """Run the full Confluence ingestion pipeline.
+def _ingest_source(source_type: str, fetch_fn, config: dict) -> IngestionResult:
+    """Run the ingestion pipeline for a given source.
 
-    Detects changed pages, chunks them, stores embeddings,
-    and removes deleted pages from the store.
+    Detects changed documents, chunks them, stores embeddings,
+    and removes deleted documents from the store.
     """
-    if config is None:
-        config = load_config()
+    result = IngestionResult(source_type=source_type)
 
-    result = IngestionResult(source_type="confluence")
+    changed_docs, deleted_ids = fetch_fn(config)
 
-    # Detect changes
-    changed_docs, deleted_ids = fetch_changed_documents(config)
-
-    # Initialize store and splitter
     store = init_store(config)
     splitter = _build_splitter(config)
 
-    # Handle deletions
     for doc_id in deleted_ids:
         delete_by_doc_id(store, doc_id)
         result.documents_deleted += 1
@@ -43,16 +38,34 @@ def ingest_confluence(config: dict | None = None) -> IngestionResult:
     if not changed_docs:
         return result
 
-    # Split changed documents into chunks, preserving metadata
     chunks = splitter.split_documents(changed_docs)
 
-    # Delete old chunks for changed documents before re-adding
     updated_doc_ids = {doc.metadata["doc_id"] for doc in changed_docs}
     for doc_id in updated_doc_ids:
         delete_by_doc_id(store, doc_id)
 
-    # Store new chunks
     add_documents(store, chunks)
     result.documents_processed = len(changed_docs)
 
     return result
+
+
+def ingest_confluence(config: dict | None = None) -> IngestionResult:
+    """Run the full Confluence ingestion pipeline."""
+    if config is None:
+        config = load_config()
+    return _ingest_source("confluence", confluence_source.fetch_changed_documents, config)
+
+
+def ingest_git(config: dict | None = None) -> IngestionResult:
+    """Run the full Git ingestion pipeline."""
+    if config is None:
+        config = load_config()
+    return _ingest_source("git", git_source.fetch_changed_documents, config)
+
+
+def ingest_all(config: dict | None = None) -> list[IngestionResult]:
+    """Run ingestion for all configured sources."""
+    if config is None:
+        config = load_config()
+    return [ingest_confluence(config), ingest_git(config)]
