@@ -65,6 +65,7 @@ def ask(config: dict, question: str, top_k: int = 5) -> dict:
     llm = ChatOpenAI(
         model=config["generation"]["model"],
         api_key=config["openai_api_key"],
+        model_kwargs={"store": False},
     )
 
     messages = [
