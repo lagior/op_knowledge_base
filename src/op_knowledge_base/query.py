@@ -9,7 +9,10 @@ from op_knowledge_base.store import init_store, query as vector_query
 SYSTEM_PROMPT = (
     "You are a helpful assistant that answers questions using the provided context. "
     "Base your answer on the context below. If the context doesn't contain enough "
-    "information to answer fully, say so. Cite the source documents when possible."
+    "information to answer fully, say so.\n\n"
+    "IMPORTANT: Always cite your sources by referencing the document title and type "
+    "shown in square brackets (e.g. [confluence: Page Title]). When combining "
+    "information from multiple sources, cite each one."
 )
 
 CONTEXT_TEMPLATE = """Context:
@@ -25,7 +28,11 @@ def _format_context(results: list) -> str:
         meta = doc.metadata
         source_label = meta.get("title", meta.get("doc_id", "unknown"))
         source_type = meta.get("source_type", "unknown")
-        parts.append(f"[{source_type}: {source_label}]\n{doc.page_content}")
+        last_updated = meta.get("last_updated", "")
+        header = f"[{source_type}: {source_label}]"
+        if last_updated:
+            header += f" (updated: {last_updated})"
+        parts.append(f"{header}\n{doc.page_content}")
     return "\n\n---\n\n".join(parts)
 
 
@@ -43,18 +50,21 @@ def _build_sources(results: list) -> list[dict]:
             "doc_id": doc_id,
             "title": meta.get("title", doc_id),
             "source_type": meta.get("source_type", "unknown"),
+            "last_updated": meta.get("last_updated", ""),
             "score": score,
         })
     return sources
 
 
-def ask(config: dict, question: str, top_k: int = 5) -> dict:
+def ask(config: dict, question: str, top_k: int = 5, source_type: str | None = None) -> dict:
     """Run the full query pipeline: retrieve -> format -> generate.
 
     Returns dict with 'answer' and 'sources' keys.
+    source_type filters results to a specific source (e.g. 'confluence', 'git').
     """
     store = init_store(config)
-    results = vector_query(store, question, top_k=top_k)
+    filters = {"source_type": source_type} if source_type else None
+    results = vector_query(store, question, top_k=top_k, filters=filters)
 
     if not results:
         return {"answer": "No relevant documents found.", "sources": []}

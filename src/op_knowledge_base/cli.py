@@ -60,16 +60,21 @@ def ingest_all_cmd():
 @main.command()
 @click.argument("question")
 @click.option("--top-k", default=5, help="Number of chunks to retrieve.")
-def query(question, top_k):
+@click.option("--source", type=click.Choice(["confluence", "git"]), default=None,
+              help="Filter results to a specific source type.")
+def query(question, top_k, source):
     """Ask a question against the knowledge base."""
     from op_knowledge_base.query import ask
 
     config = load_config()
-    result = ask(config, question, top_k=top_k)
+    result = ask(config, question, top_k=top_k, source_type=source)
 
     click.echo(f"\n{result['answer']}\n")
 
     if result["sources"]:
         click.echo("Sources:")
         for src in result["sources"]:
-            click.echo(f"  - [{src['source_type']}] {src['title']}")
+            line = f"  - [{src['source_type']}] {src['title']}"
+            if src.get("last_updated"):
+                line += f" (updated: {src['last_updated']})"
+            click.echo(line)

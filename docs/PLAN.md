@@ -5,7 +5,7 @@
 - Language: Python
 - Vector DB: ChromaDB (embedded, local)
 - Embeddings: OpenAI text-embedding-3-small
-- Generation: Claude (Anthropic) via langchain-anthropic
+- Generation: OpenAI (gpt-4o-mini) via langchain-openai (store=false)
 - Data sources: Real Confluence + multiple Git repos
 - Package manager: uv
 - Framework: LangChain (where it adds value, custom code for the hard parts)
@@ -17,7 +17,7 @@ Use LangChain for:
 - Text splitters (RecursiveCharacterTextSplitter) -- well-tested, many strategies
 - ChromaDB vector store integration -- standard and clean
 - OpenAI embeddings wrapper -- consistent interface
-- Anthropic Claude wrapper for generation -- consistent interface
+- OpenAI ChatOpenAI wrapper for generation -- consistent interface, single API key
 
 Write yourself:
 - Change detection logic -- the core engineering challenge
@@ -145,19 +145,21 @@ op_knowledge_base/
 
 ## Phase 4: Query Pipeline (Steps 9-10)
 
-### Step 9: Basic query pipeline
+### Step 9: Basic query pipeline [DONE]
 - `query.py`:
-  - Use LangChain's Chroma retriever for similarity search
-  - Build a prompt template with retrieved context + source metadata
-  - Call ChatAnthropic (Claude) with the prompt
-  - Return answer + source references
-- `cli.py`: Add `query` command
+  - Use ChromaDB similarity search with scores
+  - Build a prompt with retrieved context labeled by source type and title
+  - Call ChatOpenAI (gpt-4o-mini, store=false) with system + human messages
+  - Return answer + deduplicated source references
+- `cli.py`: Add `query` command with --top-k option
+- Unit tests (5 tests passing)
 
-### Step 10: Source attribution and filtering
+### Step 10: Source attribution and filtering [DONE]
 - Include source metadata in prompt (source_type, title, last_updated)
-- Instruct LLM to cite sources
-- Add CLI flags to filter by source_type or recency
-- Display formatted sources after answer
+- Stronger citation instructions in system prompt
+- `--source` CLI flag to filter by source_type (confluence/git)
+- Display formatted sources with last_updated after answer
+- Unit tests (9 tests passing)
 
 **Checkpoint: Working end-to-end RAG with citations.**
 
@@ -198,8 +200,8 @@ op_knowledge_base/
 6. ~~Confluence ingestion e2e~~ DONE
 7. ~~Git loader + change detection~~ DONE
 8. ~~Git ingestion e2e~~ DONE
-9. Query pipeline
-10. Source attribution + filtering
+9. ~~Query pipeline~~ DONE
+10. ~~Source attribution + filtering~~ DONE
 11. Chunk-level deduplication
 12. Status CLI
 13. Error handling
