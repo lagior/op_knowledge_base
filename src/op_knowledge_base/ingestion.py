@@ -6,7 +6,14 @@ from op_knowledge_base.config import load_config
 from op_knowledge_base.models import IngestionResult
 from op_knowledge_base.sources import confluence as confluence_source
 from op_knowledge_base.sources import git as git_source
-from op_knowledge_base.store import add_documents, delete_by_doc_id, init_store
+from op_knowledge_base.change_detection import content_hash
+from op_knowledge_base.store import (
+    add_documents,
+    delete_by_doc_id,
+    delete_by_ids,
+    get_chunk_hashes,
+    init_store,
+)
 
 
 def _build_splitter(config: dict) -> RecursiveCharacterTextSplitter:
@@ -40,11 +47,35 @@ def _ingest_source(source_type: str, fetch_fn, config: dict) -> IngestionResult:
 
     chunks = splitter.split_documents(changed_docs)
 
-    updated_doc_ids = {doc.metadata["doc_id"] for doc in changed_docs}
-    for doc_id in updated_doc_ids:
-        delete_by_doc_id(store, doc_id)
+    # Compute chunk hashes
+    for chunk in chunks:
+        chunk.metadata["chunk_hash"] = content_hash(chunk.page_content)
 
-    add_documents(store, chunks)
+    # Deduplicate per document
+    updated_doc_ids = {doc.metadata["doc_id"] for doc in changed_docs}
+    new_chunks_to_add = []
+    for doc_id in updated_doc_ids:
+        old_hashes = get_chunk_hashes(store, doc_id)
+        doc_chunks = [c for c in chunks if c.metadata["doc_id"] == doc_id]
+        new_hash_set = {c.metadata["chunk_hash"] for c in doc_chunks}
+
+        # Only add chunks whose hash is new
+        for chunk in doc_chunks:
+            if chunk.metadata["chunk_hash"] in old_hashes:
+                result.chunks_skipped += 1
+            else:
+                new_chunks_to_add.append(chunk)
+
+        # Delete old chunks whose hash is no longer present
+        ids_to_delete = []
+        for old_hash, chroma_ids in old_hashes.items():
+            if old_hash not in new_hash_set:
+                ids_to_delete.extend(chroma_ids)
+        delete_by_ids(store, ids_to_delete)
+
+    if new_chunks_to_add:
+        add_documents(store, new_chunks_to_add)
+
     result.documents_processed = len(changed_docs)
 
     return result

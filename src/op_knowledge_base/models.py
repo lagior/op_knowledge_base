@@ -23,4 +23,5 @@ class IngestionResult:
     documents_processed: int = 0
     documents_skipped: int = 0
     documents_deleted: int = 0
+    chunks_skipped: int = 0
     errors: list[str] = field(default_factory=list)

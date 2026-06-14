@@ -31,6 +31,22 @@ def query(store: Chroma, question: str, top_k: int = 5, filters: dict | None = N
     )
 
 
+def get_chunk_hashes(store: Chroma, doc_id: str) -> dict[str, list[str]]:
+    """Return {chunk_hash: [chroma_ids]} for all chunks of a document."""
+    results = store.get(where={"doc_id": doc_id}, include=["metadatas"])
+    hash_to_ids: dict[str, list[str]] = {}
+    for chroma_id, meta in zip(results["ids"], results["metadatas"]):
+        chunk_hash = meta.get("chunk_hash", "")
+        hash_to_ids.setdefault(chunk_hash, []).append(chroma_id)
+    return hash_to_ids
+
+
+def delete_by_ids(store: Chroma, ids: list[str]) -> None:
+    """Remove specific chunks by their ChromaDB IDs."""
+    if ids:
+        store.delete(ids=ids)
+
+
 def delete_by_doc_id(store: Chroma, doc_id: str) -> None:
     """Remove all chunks belonging to a document."""
     results = store.get(where={"doc_id": doc_id})

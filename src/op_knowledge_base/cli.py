@@ -19,7 +19,8 @@ def _echo_result(result):
     """Print an ingestion result."""
     click.echo(
         f"  [{result.source_type}] {result.documents_processed} updated, "
-        f"{result.documents_deleted} deleted"
+        f"{result.documents_deleted} deleted, "
+        f"{result.chunks_skipped} chunks skipped"
     )
     for err in result.errors:
         click.echo(f"  Error: {err}")
