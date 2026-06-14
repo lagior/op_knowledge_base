@@ -1,0 +1,38 @@
+# OpenAI API key (for embeddings only)
+openai_api_key: ${OPENAI_API_KEY}
+
+# Anthropic API key (for generation)
+anthropic_api_key: ${ANTHROPIC_API_KEY}
+
+# Embedding settings
+embedding:
+  model: text-embedding-3-small
+
+# Generation settings
+generation:
+  model: claude-sonnet-4-6
+
+# ChromaDB settings
+chroma:
+  persist_directory: ./chroma_db
+  collection_name: knowledge_base
+
+# Chunking settings
+chunking:
+  chunk_size: 1000
+  chunk_overlap: 200
+
+# Confluence settings
+confluence:
+  url: https://your-instance.atlassian.net
+  username: your-email@example.com
+  api_token: ${CONFLUENCE_API_TOKEN}
+  space_key: YOUR_SPACE
+
+# Git repositories to index
+git:
+  repos:
+    - path: /path/to/repo1
+      extensions: [".md", ".py", ".txt", ".yaml", ".yml"]
+    - path: /path/to/repo2
+      extensions: [".md", ".py", ".txt"]
