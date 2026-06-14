@@ -1,16 +1,13 @@
 # OpenAI API key (for embeddings only)
 openai_api_key: ${OPENAI_API_KEY}
 
-# Anthropic API key (for generation)
-anthropic_api_key: ${ANTHROPIC_API_KEY}
-
 # Embedding settings
 embedding:
   model: text-embedding-3-small
 
 # Generation settings
 generation:
-  model: claude-sonnet-4-6
+  model: gpt-4o-mini
 
 # ChromaDB settings
 chroma:

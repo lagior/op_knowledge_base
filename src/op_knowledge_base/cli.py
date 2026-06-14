@@ -55,3 +55,21 @@ def ingest_all_cmd():
     for result in ingest_all(config):
         _echo_result(result)
     click.echo("Done.")
+
+
+@main.command()
+@click.argument("question")
+@click.option("--top-k", default=5, help="Number of chunks to retrieve.")
+def query(question, top_k):
+    """Ask a question against the knowledge base."""
+    from op_knowledge_base.query import ask
+
+    config = load_config()
+    result = ask(config, question, top_k=top_k)
+
+    click.echo(f"\n{result['answer']}\n")
+
+    if result["sources"]:
+        click.echo("Sources:")
+        for src in result["sources"]:
+            click.echo(f"  - [{src['source_type']}] {src['title']}")

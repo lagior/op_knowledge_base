@@ -81,7 +81,7 @@ op_knowledge_base/
   - Load/save state from JSON files
   - Unit tests (6 tests passing)
 
-### Step 3: Vector store wrapper
+### Step 3: Vector store wrapper [DONE]
 - `store.py`: Thin layer over LangChain's Chroma integration
   - Initialize persistent ChromaDB collection
   - add_documents(docs, metadatas): uses LangChain's Chroma.from_documents
@@ -90,7 +90,7 @@ op_knowledge_base/
   - list_doc_ids(): what's currently indexed
   - Unit tests
 
-### Step 4: Verify foundation works
+### Step 4: Verify foundation works [DONE]
 - Write a small script that:
   - Creates a Document manually
   - Splits it with RecursiveCharacterTextSplitter
@@ -102,14 +102,15 @@ op_knowledge_base/
 
 ## Phase 2: Confluence Source (Steps 5-6)
 
-### Step 5: Confluence client with change detection
+### Step 5: Confluence client with change detection [DONE]
 - `sources/confluence.py`:
   - Use LangChain's ConfluenceLoader to fetch pages
   - Add change detection on top: compare page version/lastUpdated
   - Track seen state in state/confluence.json
   - Return only changed/new documents
+  - Unit tests (4 tests passing)
 
-### Step 6: Confluence ingestion end-to-end
+### Step 6: Confluence ingestion end-to-end [DONE]
 - `ingestion.py`: Orchestrate the pipeline
   - Detect changed docs (custom code)
   - Load content (LangChain loader)
@@ -124,17 +125,20 @@ op_knowledge_base/
 
 ## Phase 3: Git Source (Steps 7-8)
 
-### Step 7: Git repo scanner with change detection
+### Step 7: Git repo scanner with change detection [DONE]
 - `sources/git.py`:
   - Use LangChain's GitLoader for file loading
   - Filter by file extensions (.md, .py, .txt, .yaml, etc.)
   - Change detection: SHA256 hash of file contents
   - Track in state/git.json
   - Support multiple repos from config
+  - Unit tests (4 tests passing)
 
-### Step 8: Git ingestion end-to-end
+### Step 8: Git ingestion end-to-end [DONE]
 - Wire git source into ingestion.py
+- Refactored shared `_ingest_source` helper (eliminates duplication)
 - `cli.py`: Add `ingest git` and `ingest all` commands
+- Unit tests (3 git ingestion tests passing)
 - Test with real repos
 
 **Checkpoint: Can ingest both sources with change detection.**
@@ -188,12 +192,12 @@ op_knowledge_base/
 
 1. ~~Project scaffolding + config~~ DONE
 2. ~~Data models + change detection + tests~~ DONE
-3. ChromaDB store wrapper + tests
-4. Foundation verification (end-to-end smoke test)
-5. Confluence loader + change detection
-6. Confluence ingestion e2e
-7. Git loader + change detection
-8. Git ingestion e2e
+3. ~~ChromaDB store wrapper + tests~~ DONE
+4. ~~Foundation verification (end-to-end smoke test)~~ DONE
+5. ~~Confluence loader + change detection~~ DONE
+6. ~~Confluence ingestion e2e~~ DONE
+7. ~~Git loader + change detection~~ DONE
+8. ~~Git ingestion e2e~~ DONE
 9. Query pipeline
 10. Source attribution + filtering
 11. Chunk-level deduplication
