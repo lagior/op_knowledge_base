@@ -9,7 +9,6 @@ from op_knowledge_base.change_detection import (
     content_hash,
     has_changed,
     load_state,
-    save_state,
 )
 from op_knowledge_base.config import load_config
 from op_knowledge_base.models import SourceState
@@ -33,13 +32,12 @@ def _doc_id(page_id: str) -> str:
     return f"confluence:{page_id}"
 
 
-def fetch_changed_documents(config: dict | None = None) -> tuple[list[Document], list[str]]:
+def fetch_changed_documents(config: dict | None = None) -> tuple[list[Document], list[str], dict]:
     """Fetch Confluence pages and return only those that changed.
 
     Returns:
-        A tuple of (changed_documents, deleted_doc_ids).
-        changed_documents: Documents whose content has changed since last run.
-        deleted_doc_ids: Doc IDs that were previously indexed but no longer exist.
+        A tuple of (changed_documents, deleted_doc_ids, new_state).
+        State is returned but NOT saved; the caller saves after successful storage.
     """
     if config is None:
         config = load_config()
@@ -62,12 +60,10 @@ def fetch_changed_documents(config: dict | None = None) -> tuple[list[Document],
         new_hash = content_hash(doc.page_content)
 
         if has_changed(doc_id, new_hash, state):
-            # Tag metadata for downstream use
             doc.metadata["doc_id"] = doc_id
             doc.metadata["source_type"] = SOURCE_TYPE
             changed_docs.append(doc)
 
-            # Update state
             state[doc_id] = SourceState(
                 doc_id=doc_id,
                 source_type=SOURCE_TYPE,
@@ -81,5 +77,4 @@ def fetch_changed_documents(config: dict | None = None) -> tuple[list[Document],
     for did in deleted_ids:
         del state[did]
 
-    save_state(SOURCE_TYPE, state)
-    return changed_docs, deleted_ids
+    return changed_docs, deleted_ids, state

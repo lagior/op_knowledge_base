@@ -4,6 +4,9 @@ import os
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 CONFIG_PATH = Path(__file__).parent.parent.parent / "config.yaml"

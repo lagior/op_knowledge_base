@@ -10,7 +10,6 @@ from op_knowledge_base.change_detection import (
     content_hash,
     has_changed,
     load_state,
-    save_state,
 )
 from op_knowledge_base.config import load_config
 from op_knowledge_base.models import SourceState
@@ -31,17 +30,20 @@ def _build_loader(repo_config: dict) -> GitLoader:
     def file_filter(path: str) -> bool:
         return Path(path).suffix in extensions
 
+    branch = repo_config.get("branch", "main")
     return GitLoader(
         repo_path=repo_config["path"],
+        branch=branch,
         file_filter=file_filter,
     )
 
 
-def fetch_changed_documents(config: dict | None = None) -> tuple[list[Document], list[str]]:
+def fetch_changed_documents(config: dict | None = None) -> tuple[list[Document], list[str], dict]:
     """Fetch files from git repos and return only those that changed.
 
     Returns:
-        A tuple of (changed_documents, deleted_doc_ids).
+        A tuple of (changed_documents, deleted_doc_ids, new_state).
+        State is returned but NOT saved; the caller saves after successful storage.
     """
     if config is None:
         config = load_config()
@@ -82,5 +84,4 @@ def fetch_changed_documents(config: dict | None = None) -> tuple[list[Document],
     for did in deleted_ids:
         del state[did]
 
-    save_state(SOURCE_TYPE, state)
-    return changed_docs, deleted_ids
+    return changed_docs, deleted_ids, state

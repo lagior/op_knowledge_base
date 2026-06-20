@@ -4,11 +4,11 @@ import logging
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from op_knowledge_base.change_detection import content_hash, save_state
 from op_knowledge_base.config import load_config
 from op_knowledge_base.models import IngestionResult
 from op_knowledge_base.sources import confluence as confluence_source
 from op_knowledge_base.sources import git as git_source
-from op_knowledge_base.change_detection import content_hash
 from op_knowledge_base.store import (
     add_documents,
     delete_by_doc_id,
@@ -39,7 +39,7 @@ def _ingest_source(source_type: str, fetch_fn, config: dict) -> IngestionResult:
     result = IngestionResult(source_type=source_type)
 
     try:
-        changed_docs, deleted_ids = fetch_fn(config)
+        changed_docs, deleted_ids, new_state = fetch_fn(config)
     except Exception as e:
         msg = f"Failed to fetch {source_type} documents: {e}"
         logger.error(msg)
@@ -59,6 +59,7 @@ def _ingest_source(source_type: str, fetch_fn, config: dict) -> IngestionResult:
             result.errors.append(msg)
 
     if not changed_docs:
+        save_state(source_type, new_state)
         return result
 
     chunks = splitter.split_documents(changed_docs)
@@ -108,6 +109,7 @@ def _ingest_source(source_type: str, fetch_fn, config: dict) -> IngestionResult:
             return result
 
     result.documents_processed = len(changed_docs)
+    save_state(source_type, new_state)
 
     return result
 

@@ -24,10 +24,9 @@ def _make_doc(page_id: str, title: str, content: str) -> Document:
     )
 
 
-@patch("op_knowledge_base.sources.confluence.save_state")
 @patch("op_knowledge_base.sources.confluence.load_state")
 @patch("op_knowledge_base.sources.confluence._build_loader")
-def test_all_new_documents_detected(mock_loader, mock_load_state, mock_save_state):
+def test_all_new_documents_detected(mock_loader, mock_load_state):
     """First run: all documents are new."""
     mock_load_state.return_value = {}
     loader_instance = MagicMock()
@@ -37,7 +36,7 @@ def test_all_new_documents_detected(mock_loader, mock_load_state, mock_save_stat
     ]
     mock_loader.return_value = loader_instance
 
-    changed, deleted = fetch_changed_documents(config=FAKE_CONFIG)
+    changed, deleted, _state = fetch_changed_documents(config=FAKE_CONFIG)
 
     assert len(changed) == 2
     assert len(deleted) == 0
@@ -45,10 +44,9 @@ def test_all_new_documents_detected(mock_loader, mock_load_state, mock_save_stat
     assert changed[1].metadata["doc_id"] == "confluence:2"
 
 
-@patch("op_knowledge_base.sources.confluence.save_state")
 @patch("op_knowledge_base.sources.confluence.load_state")
 @patch("op_knowledge_base.sources.confluence._build_loader")
-def test_unchanged_documents_skipped(mock_loader, mock_load_state, mock_save_state):
+def test_unchanged_documents_skipped(mock_loader, mock_load_state):
     """Second run with no changes: nothing returned."""
     from op_knowledge_base.change_detection import content_hash
     from op_knowledge_base.models import SourceState
@@ -68,16 +66,15 @@ def test_unchanged_documents_skipped(mock_loader, mock_load_state, mock_save_sta
     ]
     mock_loader.return_value = loader_instance
 
-    changed, deleted = fetch_changed_documents(config=FAKE_CONFIG)
+    changed, deleted, _state = fetch_changed_documents(config=FAKE_CONFIG)
 
     assert len(changed) == 0
     assert len(deleted) == 0
 
 
-@patch("op_knowledge_base.sources.confluence.save_state")
 @patch("op_knowledge_base.sources.confluence.load_state")
 @patch("op_knowledge_base.sources.confluence._build_loader")
-def test_modified_document_detected(mock_loader, mock_load_state, mock_save_state):
+def test_modified_document_detected(mock_loader, mock_load_state):
     """A document with changed content is returned."""
     from op_knowledge_base.change_detection import content_hash
     from op_knowledge_base.models import SourceState
@@ -97,16 +94,15 @@ def test_modified_document_detected(mock_loader, mock_load_state, mock_save_stat
     ]
     mock_loader.return_value = loader_instance
 
-    changed, deleted = fetch_changed_documents(config=FAKE_CONFIG)
+    changed, deleted, _state = fetch_changed_documents(config=FAKE_CONFIG)
 
     assert len(changed) == 1
     assert changed[0].page_content == "New content"
 
 
-@patch("op_knowledge_base.sources.confluence.save_state")
 @patch("op_knowledge_base.sources.confluence.load_state")
 @patch("op_knowledge_base.sources.confluence._build_loader")
-def test_deleted_document_detected(mock_loader, mock_load_state, mock_save_state):
+def test_deleted_document_detected(mock_loader, mock_load_state):
     """A page removed from Confluence is reported as deleted."""
     from op_knowledge_base.change_detection import content_hash
     from op_knowledge_base.models import SourceState
@@ -134,7 +130,7 @@ def test_deleted_document_detected(mock_loader, mock_load_state, mock_save_state
     ]
     mock_loader.return_value = loader_instance
 
-    changed, deleted = fetch_changed_documents(config=FAKE_CONFIG)
+    changed, deleted, _state = fetch_changed_documents(config=FAKE_CONFIG)
 
     assert len(changed) == 0
     assert deleted == ["confluence:2"]

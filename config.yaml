@@ -21,15 +21,14 @@ chunking:
 
 # Confluence settings
 confluence:
-  url: https://your-instance.atlassian.net
-  username: your-email@example.com
+  url: https://channelvas.atlassian.net/wiki
+  username: george.ladakis@channelvas.com
   api_token: ${CONFLUENCE_API_TOKEN}
-  space_key: YOUR_SPACE
+  space_key: FEATURECALCDAG
 
 # Git repositories to index
 git:
   repos:
-    - path: /path/to/repo1
-      extensions: [".md", ".py", ".txt", ".yaml", ".yml"]
-    - path: /path/to/repo2
-      extensions: [".md", ".py", ".txt"]
+    - path: /home/gladakis/feature_calculator_dag
+      branch: release/v1.0.0
+      extensions: [".md", ".py", ".txt", ".yaml", ".yml", ".py.jinja", ".jinja"]

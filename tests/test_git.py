@@ -23,10 +23,9 @@ def _make_doc(file_path: str, content: str) -> Document:
     )
 
 
-@patch("op_knowledge_base.sources.git.save_state")
 @patch("op_knowledge_base.sources.git.load_state")
 @patch("op_knowledge_base.sources.git._build_loader")
-def test_all_new_files_detected(mock_build_loader, mock_load_state, mock_save_state):
+def test_all_new_files_detected(mock_build_loader, mock_load_state):
     """First run: all files are new."""
     mock_load_state.return_value = {}
     loader_instance = MagicMock()
@@ -36,7 +35,7 @@ def test_all_new_files_detected(mock_build_loader, mock_load_state, mock_save_st
     ]
     mock_build_loader.return_value = loader_instance
 
-    changed, deleted = fetch_changed_documents(config=FAKE_CONFIG)
+    changed, deleted, _state = fetch_changed_documents(config=FAKE_CONFIG)
 
     assert len(changed) == 2
     assert len(deleted) == 0
@@ -44,10 +43,9 @@ def test_all_new_files_detected(mock_build_loader, mock_load_state, mock_save_st
     assert changed[1].metadata["doc_id"] == "git:repo:main.py"
 
 
-@patch("op_knowledge_base.sources.git.save_state")
 @patch("op_knowledge_base.sources.git.load_state")
 @patch("op_knowledge_base.sources.git._build_loader")
-def test_unchanged_files_skipped(mock_build_loader, mock_load_state, mock_save_state):
+def test_unchanged_files_skipped(mock_build_loader, mock_load_state):
     """Second run with no changes: nothing returned."""
     from op_knowledge_base.change_detection import content_hash
     from op_knowledge_base.models import SourceState
@@ -67,16 +65,15 @@ def test_unchanged_files_skipped(mock_build_loader, mock_load_state, mock_save_s
     ]
     mock_build_loader.return_value = loader_instance
 
-    changed, deleted = fetch_changed_documents(config=FAKE_CONFIG)
+    changed, deleted, _state = fetch_changed_documents(config=FAKE_CONFIG)
 
     assert len(changed) == 0
     assert len(deleted) == 0
 
 
-@patch("op_knowledge_base.sources.git.save_state")
 @patch("op_knowledge_base.sources.git.load_state")
 @patch("op_knowledge_base.sources.git._build_loader")
-def test_modified_file_detected(mock_build_loader, mock_load_state, mock_save_state):
+def test_modified_file_detected(mock_build_loader, mock_load_state):
     """A file with changed content is returned."""
     from op_knowledge_base.change_detection import content_hash
     from op_knowledge_base.models import SourceState
@@ -96,16 +93,15 @@ def test_modified_file_detected(mock_build_loader, mock_load_state, mock_save_st
     ]
     mock_build_loader.return_value = loader_instance
 
-    changed, deleted = fetch_changed_documents(config=FAKE_CONFIG)
+    changed, deleted, _state = fetch_changed_documents(config=FAKE_CONFIG)
 
     assert len(changed) == 1
     assert changed[0].page_content == "New content"
 
 
-@patch("op_knowledge_base.sources.git.save_state")
 @patch("op_knowledge_base.sources.git.load_state")
 @patch("op_knowledge_base.sources.git._build_loader")
-def test_deleted_file_detected(mock_build_loader, mock_load_state, mock_save_state):
+def test_deleted_file_detected(mock_build_loader, mock_load_state):
     """A file removed from the repo is reported as deleted."""
     from op_knowledge_base.change_detection import content_hash
     from op_knowledge_base.models import SourceState
@@ -133,7 +129,7 @@ def test_deleted_file_detected(mock_build_loader, mock_load_state, mock_save_sta
     ]
     mock_build_loader.return_value = loader_instance
 
-    changed, deleted = fetch_changed_documents(config=FAKE_CONFIG)
+    changed, deleted, _state = fetch_changed_documents(config=FAKE_CONFIG)
 
     assert len(changed) == 0
     assert deleted == ["git:repo:old.py"]
