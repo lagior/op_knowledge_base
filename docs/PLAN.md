@@ -165,21 +165,28 @@ op_knowledge_base/
 
 ## Phase 5: Production Hardening (Steps 11-13)
 
-### Step 11: Chunk-level deduplication
-- Hash each chunk's content before embedding
-- Skip embedding if chunk hash unchanged (saves API costs)
-- Atomic document updates: delete old chunks + insert new in one operation
+### Step 11: Chunk-level deduplication [DONE]
+- Hash each chunk's content (SHA256) before embedding
+- Compare chunk hashes against existing chunks in ChromaDB
+- Skip embedding if chunk hash unchanged (saves OpenAI API costs)
+- Only delete old chunks whose hash no longer appears in new version
+- Added `get_chunk_hashes` and `delete_by_ids` to store.py
+- Added `chunks_skipped` field to IngestionResult
+- CLI shows chunks_skipped count
+- Unit tests (3 dedup tests passing, 40 total)
 
-### Step 12: Status and observability
-- `cli.py`: Add `status` command
-  - Indexed document count by source
-  - Last ingestion timestamp
-  - Stale document detection
+### Step 12: Status and observability [DONE]
+- `status.py`: get_status() gathers doc/chunk counts, last ingestion, stale/orphaned docs
+- `cli.py`: `status` command displays all info
+- Unit tests (4 tests passing)
 
-### Step 13: Error handling and retry
-- Graceful handling of Confluence API failures
-- Graceful handling of OpenAI rate limits
-- Partial ingestion recovery (don't lose progress on failure)
+### Step 13: Error handling and retry [DONE]
+- `_ingest_source`: per-document error handling, captures failures in result.errors
+- Source fetch failures (Confluence API, Git) caught and reported gracefully
+- Embedding/storage failures caught, partial progress preserved
+- Delete failures for individual docs don't stop the batch
+- Query pipeline wraps OpenAI calls, raises RuntimeError with context
+- Unit tests (4 new error handling tests, 48 total)
 
 **Checkpoint: Production-usable system.**
 
@@ -202,8 +209,8 @@ op_knowledge_base/
 8. ~~Git ingestion e2e~~ DONE
 9. ~~Query pipeline~~ DONE
 10. ~~Source attribution + filtering~~ DONE
-11. Chunk-level deduplication
-12. Status CLI
-13. Error handling
+11. ~~Chunk-level deduplication~~ DONE
+12. ~~Status CLI~~ DONE
+13. ~~Error handling~~ DONE
 
 Each step is small, testable, and builds on the previous one.

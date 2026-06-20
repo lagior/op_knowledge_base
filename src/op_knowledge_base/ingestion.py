@@ -1,5 +1,7 @@
 """Orchestrates the ingestion pipeline: detect changes -> chunk -> store."""
 
+import logging
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from op_knowledge_base.config import load_config
@@ -14,6 +16,8 @@ from op_knowledge_base.store import (
     get_chunk_hashes,
     init_store,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _build_splitter(config: dict) -> RecursiveCharacterTextSplitter:
@@ -30,17 +34,29 @@ def _ingest_source(source_type: str, fetch_fn, config: dict) -> IngestionResult:
 
     Detects changed documents, chunks them, stores embeddings,
     and removes deleted documents from the store.
+    Handles errors gracefully: logs failures and continues processing.
     """
     result = IngestionResult(source_type=source_type)
 
-    changed_docs, deleted_ids = fetch_fn(config)
+    try:
+        changed_docs, deleted_ids = fetch_fn(config)
+    except Exception as e:
+        msg = f"Failed to fetch {source_type} documents: {e}"
+        logger.error(msg)
+        result.errors.append(msg)
+        return result
 
     store = init_store(config)
     splitter = _build_splitter(config)
 
     for doc_id in deleted_ids:
-        delete_by_doc_id(store, doc_id)
-        result.documents_deleted += 1
+        try:
+            delete_by_doc_id(store, doc_id)
+            result.documents_deleted += 1
+        except Exception as e:
+            msg = f"Failed to delete {doc_id}: {e}"
+            logger.error(msg)
+            result.errors.append(msg)
 
     if not changed_docs:
         return result
@@ -55,18 +71,27 @@ def _ingest_source(source_type: str, fetch_fn, config: dict) -> IngestionResult:
     updated_doc_ids = {doc.metadata["doc_id"] for doc in changed_docs}
     new_chunks_to_add = []
     for doc_id in updated_doc_ids:
-        old_hashes = get_chunk_hashes(store, doc_id)
+        try:
+            old_hashes = get_chunk_hashes(store, doc_id)
+        except Exception as e:
+            msg = f"Failed to get chunk hashes for {doc_id}: {e}"
+            logger.error(msg)
+            result.errors.append(msg)
+            # Fall back to adding all chunks for this doc (no dedup)
+            new_chunks_to_add.extend(
+                c for c in chunks if c.metadata["doc_id"] == doc_id
+            )
+            continue
+
         doc_chunks = [c for c in chunks if c.metadata["doc_id"] == doc_id]
         new_hash_set = {c.metadata["chunk_hash"] for c in doc_chunks}
 
-        # Only add chunks whose hash is new
         for chunk in doc_chunks:
             if chunk.metadata["chunk_hash"] in old_hashes:
                 result.chunks_skipped += 1
             else:
                 new_chunks_to_add.append(chunk)
 
-        # Delete old chunks whose hash is no longer present
         ids_to_delete = []
         for old_hash, chroma_ids in old_hashes.items():
             if old_hash not in new_hash_set:
@@ -74,7 +99,13 @@ def _ingest_source(source_type: str, fetch_fn, config: dict) -> IngestionResult:
         delete_by_ids(store, ids_to_delete)
 
     if new_chunks_to_add:
-        add_documents(store, new_chunks_to_add)
+        try:
+            add_documents(store, new_chunks_to_add)
+        except Exception as e:
+            msg = f"Failed to store chunks: {e}"
+            logger.error(msg)
+            result.errors.append(msg)
+            return result
 
     result.documents_processed = len(changed_docs)
 
@@ -96,7 +127,10 @@ def ingest_git(config: dict | None = None) -> IngestionResult:
 
 
 def ingest_all(config: dict | None = None) -> list[IngestionResult]:
-    """Run ingestion for all configured sources."""
+    """Run ingestion for all configured sources. Continues on failure."""
     if config is None:
         config = load_config()
-    return [ingest_confluence(config), ingest_git(config)]
+    results = []
+    for ingest_fn in [ingest_confluence, ingest_git]:
+        results.append(ingest_fn(config))
+    return results

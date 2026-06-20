@@ -138,3 +138,19 @@ def test_ask_with_source_type_filter(mock_init_store, mock_query, mock_llm_class
     call_kwargs = mock_query.call_args
     assert call_kwargs[1]["filters"] == {"source_type": "git"}
     assert result["answer"] == "Answer from git."
+
+
+@patch("op_knowledge_base.query.ChatOpenAI")
+@patch("op_knowledge_base.query.vector_query")
+@patch("op_knowledge_base.query.init_store")
+def test_ask_openai_failure_raises_runtime_error(mock_init_store, mock_query, mock_llm_class):
+    """OpenAI generation failure raises RuntimeError with message."""
+    mock_init_store.return_value = MagicMock()
+    mock_query.return_value = [_make_result("c:1", "text")]
+    mock_llm = MagicMock()
+    mock_llm.invoke.side_effect = Exception("Rate limit exceeded")
+    mock_llm_class.return_value = mock_llm
+
+    import pytest
+    with pytest.raises(RuntimeError, match="Failed to generate answer"):
+        ask(_fake_config(), "test question")

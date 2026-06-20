@@ -59,6 +59,31 @@ def ingest_all_cmd():
 
 
 @main.command()
+def status():
+    """Show knowledge base status and statistics."""
+    from op_knowledge_base.status import get_status
+
+    config = load_config()
+    info = get_status(config)
+
+    click.echo(f"Total chunks: {info['total_chunks']}\n")
+
+    for source_type, data in info["sources"].items():
+        click.echo(f"  {source_type}:")
+        click.echo(f"    Documents: {data['documents']}")
+        click.echo(f"    Chunks:    {data['chunks']}")
+        if data["last_ingested"]:
+            click.echo(f"    Last ingested: {data['last_ingested']}")
+        else:
+            click.echo("    Last ingested: never")
+        if data["stale_docs"]:
+            click.echo(f"    Stale (in state, not in store): {data['stale_docs']}")
+        if data["orphaned_docs"]:
+            click.echo(f"    Orphaned (in store, not in state): {data['orphaned_docs']}")
+    click.echo()
+
+
+@main.command()
 @click.argument("question")
 @click.option("--top-k", default=5, help="Number of chunks to retrieve.")
 @click.option("--source", type=click.Choice(["confluence", "git"]), default=None,

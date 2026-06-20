@@ -271,3 +271,63 @@ def test_removed_chunks_are_deleted(
     assert result.chunks_skipped == 1
     # "removed content" chunk should be deleted
     mock_delete_ids.assert_called_once_with(mock_init_store.return_value, ["remove-id"])
+
+
+# --- Error handling tests ---
+
+
+@patch("op_knowledge_base.ingestion.init_store")
+@patch("op_knowledge_base.sources.confluence.fetch_changed_documents")
+def test_ingest_fetch_failure_returns_error(mock_fetch, mock_init_store):
+    """Source fetch failure is captured in result.errors."""
+    mock_fetch.side_effect = ConnectionError("Confluence is down")
+
+    result = ingest_confluence(config=_fake_config())
+
+    assert result.documents_processed == 0
+    assert len(result.errors) == 1
+    assert "Confluence is down" in result.errors[0]
+
+
+@patch("op_knowledge_base.ingestion.add_documents")
+@patch("op_knowledge_base.ingestion.delete_by_ids")
+@patch("op_knowledge_base.ingestion.get_chunk_hashes")
+@patch("op_knowledge_base.ingestion.delete_by_doc_id")
+@patch("op_knowledge_base.ingestion.init_store")
+@patch("op_knowledge_base.sources.git.fetch_changed_documents")
+def test_ingest_embed_failure_returns_error(
+    mock_fetch, mock_init_store, mock_delete, mock_get_hashes, mock_delete_ids, mock_add
+):
+    """Embedding failure is captured in result.errors."""
+    docs = [_make_doc("git:repo:file.md", source_type="git")]
+    mock_fetch.return_value = (docs, [])
+    mock_init_store.return_value = MagicMock()
+    mock_get_hashes.return_value = {}
+    mock_add.side_effect = RuntimeError("Rate limit exceeded")
+
+    result = ingest_git(config=_fake_config())
+
+    assert len(result.errors) == 1
+    assert "Rate limit" in result.errors[0]
+
+
+@patch("op_knowledge_base.ingestion.add_documents")
+@patch("op_knowledge_base.ingestion.delete_by_ids")
+@patch("op_knowledge_base.ingestion.get_chunk_hashes")
+@patch("op_knowledge_base.ingestion.delete_by_doc_id")
+@patch("op_knowledge_base.ingestion.init_store")
+@patch("op_knowledge_base.sources.confluence.fetch_changed_documents")
+def test_ingest_delete_failure_continues(
+    mock_fetch, mock_init_store, mock_delete, mock_get_hashes, mock_delete_ids, mock_add
+):
+    """Delete failure for one doc doesn't stop processing others."""
+    mock_fetch.return_value = ([], ["conf:1", "conf:2"])
+    mock_init_store.return_value = MagicMock()
+    mock_delete.side_effect = [RuntimeError("delete failed"), None]
+
+    result = ingest_confluence(config=_fake_config())
+
+    # First delete failed, second succeeded
+    assert result.documents_deleted == 1
+    assert len(result.errors) == 1
+    assert "conf:1" in result.errors[0]

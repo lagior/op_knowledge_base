@@ -58,3 +58,9 @@ def list_doc_ids(store: Chroma) -> set[str]:
     """Return all unique doc_id values in the store."""
     results = store.get(include=["metadatas"])
     return {m["doc_id"] for m in results["metadatas"] if "doc_id" in m}
+
+
+def get_all_metadata(store: Chroma) -> list[dict]:
+    """Return metadata for all chunks in the store."""
+    results = store.get(include=["metadatas"])
+    return results["metadatas"]

@@ -1,9 +1,13 @@
 """Query pipeline: retrieve context from vector store, generate answer with OpenAI."""
 
+import logging
+
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from op_knowledge_base.store import init_store, query as vector_query
+
+logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = (
@@ -83,6 +87,10 @@ def ask(config: dict, question: str, top_k: int = 5, source_type: str | None = N
         HumanMessage(content=CONTEXT_TEMPLATE.format(context=context, question=question)),
     ]
 
-    response = llm.invoke(messages)
+    try:
+        response = llm.invoke(messages)
+    except Exception as e:
+        logger.error("OpenAI generation failed: %s", e)
+        raise RuntimeError(f"Failed to generate answer: {e}") from e
 
     return {"answer": response.content, "sources": sources}
